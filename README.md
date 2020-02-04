@@ -12,4 +12,4 @@
 
 ### Desafio 1: [Conceitos de NodeJS](desafio01)
 
-### Desafio 1: [Conceitos de NodeJS](desafio02)
+### Desafio 2: [FastFeet, o início](desafio02)
