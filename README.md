@@ -11,3 +11,5 @@
 ## :rocket: DESAFIOS CONCLUÍDOS:
 
 ### Desafio 1: [Conceitos de NodeJS](desafio01)
+
+### Desafio 1: [Conceitos de NodeJS](desafio02)
