@@ -13,3 +13,5 @@
 ### Desafio 1: [Conceitos de NodeJS](desafio01)
 
 ### Desafio 2: [FastFeet, o início](desafio02)
+
+### Desafio 3: [FastFeet, continuando a aplicação](desafio03)
