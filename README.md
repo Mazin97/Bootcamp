@@ -17,3 +17,5 @@
 ### Desafio 3: [FastFeet, continuando a aplicação](desafio03)
 
 ### Desafio 4: [Introdução ao React](desafio04)
+
+### Desafio 5: [Primeiro projeto com ReactJS](desafio05)
