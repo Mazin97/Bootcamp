@@ -21,3 +21,5 @@
 ### Desafio 5: [Primeiro projeto com ReactJS](desafio05)
 
 ### Desafio 6: [Primeiro projeto com React Native](desafio06)
+
+### Desafio 7: [Arquitetura Flux](desafio07)
