@@ -23,3 +23,5 @@
 ### Desafio 6: [Primeiro projeto com React Native](desafio06)
 
 ### Desafio 7: [Arquitetura Flux](desafio07)
+
+### Desafio 8: [Utilizando React Hooks](desafio08)
