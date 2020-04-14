@@ -11,13 +11,13 @@ class DeliveryProblemController {
     const { page = 1 } = req.query;
 
     const problems = await DeliveryProblem.findAll({
-      limit: 20,
-      offset: (page - 1) * 20,
+      limit: 10,
+      offset: (page - 1) * 10,
       order: [
         ['created_at', 'DESC'],
         ['updated_at', 'DESC'],
       ],
-      attributes: ['description'],
+      attributes: ['id', 'description'],
       include: [
         {
           model: Delivery,
@@ -32,7 +32,8 @@ class DeliveryProblemController {
       ],
     });
 
-    return res.json(problems);
+    const totalPage = Math.ceil((await DeliveryProblem.count()) / 10);
+    return res.json({ data: problems, page, totalPage });
   }
 
   async show(req, res) {

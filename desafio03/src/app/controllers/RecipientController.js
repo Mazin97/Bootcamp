@@ -1,11 +1,33 @@
 import * as Yup from 'yup';
 
+import { Op } from 'sequelize';
+import Delivery from '../models/Delivery';
 import Recipient from '../models/Recipient';
 
 class RecipientController {
   async index(req, res) {
-    const recipients = await Recipient.findAll();
-    return res.json(recipients);
+    const { name, page = 1 } = req.query;
+
+    const filter = {};
+
+    if (name) filter.name = { [Op.iLike]: `%${name}%` };
+
+    const recipients = await Recipient.findAll({
+      where: filter,
+      offset: (page - 1) * 10,
+      limit: 10,
+      subQuery: false,
+    });
+
+    const total = await Recipient.count({
+      where: filter,
+      offset: (page - 1) * 10,
+      limit: 10,
+      subQuery: false,
+    });
+
+    const totalPage = Math.ceil(total / 10);
+    return res.json({ data: recipients, page, totalPage });
   }
 
   async show(req, res) {
@@ -24,24 +46,34 @@ class RecipientController {
 
   async store(req, res) {
     const schema = Yup.object().shape({
-      name: Yup.string().required(),
-      street: Yup.string().required(),
+      name: Yup.string().required('O nome do destinatário é obrigatório'),
+      street: Yup.string().required('A rua é obrigatória'),
       number: Yup.number()
-        .required()
-        .positive()
-        .integer(),
+        .required('O número é obrigatório')
+        .positive('O número deve ser positivo')
+        .integer('O número deve ser um número inteiro'),
       complement: Yup.string(),
       state: Yup.string()
         .required()
-        .max(2),
-      city: Yup.string().required(),
+        .max(2, 'O estado deve estar escrito em forma de sigla'),
+      city: Yup.string().required('A Cidade é obrigatória'),
       zip_code: Yup.string()
-        .required()
-        .max(10),
+        .required('O CEP é obrigatório')
+        .max(10, 'O CEP não pode ter mais que 10 digitos'),
     });
 
+    try {
+      await schema.validate(req.body);
+    } catch (error) {
+      if (error.message && error.message.length) {
+        return res.status(400).json({ error: error.message });
+      }
+    }
+
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation fails' });
+      return res
+        .status(400)
+        .json({ error: 'Valide as informações e tente novamente.' });
     }
 
     const recipientExists = await Recipient.findOne({
@@ -150,6 +182,16 @@ class RecipientController {
 
     if (!id || Number.isNaN(Number(id))) {
       return res.json({ error: 'Validation fails' });
+    }
+
+    const hasDependencies = await Delivery.findOne({
+      where: { recipient_id: id },
+    });
+
+    if (hasDependencies) {
+      return res.status(400).json({
+        error: 'Este destinatário possui dependências e não pode ser excluído.',
+      });
     }
 
     await Recipient.destroy({ where: { id } });

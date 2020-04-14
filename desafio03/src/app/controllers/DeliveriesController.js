@@ -17,26 +17,22 @@ class DeliveriesController {
       return res.status(400).json({ error: 'Validation fails' });
     }
 
-    const { onlyDelivered } = req.query;
-
     if (!(await Deliveryman.findByPk(req.params.id))) {
       return res.status(400).json({ error: 'Deliveryman not found' });
     }
 
-    if (onlyDelivered) {
-      const deliveries = await Delivery.findAll({
-        where: { deliveryman_id: req.params.id, end_date: { [Op.not]: null } },
-      });
+    const { onlyDelivered, productName } = req.query;
 
-      return res.json(deliveries);
-    }
+    const filter = {
+      deliveryman_id: req.params.id,
+      end_date: onlyDelivered ? { [Op.not]: null } : null,
+      canceled_at: null,
+    };
+
+    if (productName) filter.product = { [Op.iLike]: `%${productName}%` };
 
     const deliveries = await Delivery.findAll({
-      where: {
-        deliveryman_id: req.params.id,
-        end_date: null,
-        canceled_at: null,
-      },
+      where: filter,
     });
 
     return res.json(deliveries);

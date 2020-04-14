@@ -1,5 +1,6 @@
 import * as Yup from 'yup';
 
+import { Op } from 'sequelize';
 import Delivery from '../models/Delivery';
 import File from '../models/File';
 import Deliveryman from '../models/Deliveryman';
@@ -10,7 +11,61 @@ import Queue from '../../lib/Queue';
 
 class DeliveryController {
   async index(req, res) {
+    const { productName, page = 1 } = req.query;
+    const filter = {};
+
+    if (productName) filter.product = { [Op.iLike]: `%${productName}%` };
+
     const deliveries = await Delivery.findAll({
+      where: filter,
+      include: [
+        {
+          model: File,
+          as: 'signature',
+          attributes: ['id', 'path', 'url'],
+        },
+        {
+          model: Deliveryman,
+          attributes: ['id', 'name'],
+          include: [
+            {
+              model: File,
+              as: 'avatar',
+              attributes: ['id', 'path', 'url'],
+            },
+          ],
+        },
+        {
+          model: Recipient,
+          attributes: ['name', 'city', 'state'],
+        },
+      ],
+      offset: (page - 1) * 10,
+      limit: 10,
+      subQuery: false,
+    });
+
+    const total = await Delivery.count({
+      where: filter,
+    });
+
+    const totalPage = Math.ceil(total / 10);
+    return res.json({ data: deliveries, page, totalPage });
+  }
+
+  async show(req, res) {
+    const schema = Yup.object().shape({
+      id: Yup.number().required(),
+    });
+
+    if (!(await schema.isValid(req.params))) {
+      return res.status(400).json({ error: 'Validation fails' });
+    }
+
+    const problems = await Delivery.findOne({
+      where: {
+        id: req.params.id,
+      },
       include: [
         {
           model: File,
@@ -23,12 +78,12 @@ class DeliveryController {
         },
         {
           model: Recipient,
-          attributes: ['name', 'street', 'number'],
+          attributes: ['name', 'city', 'state', 'zip_code', 'street', 'number'],
         },
       ],
     });
 
-    return res.json(deliveries);
+    return res.json(problems);
   }
 
   async store(req, res) {
@@ -82,28 +137,33 @@ class DeliveryController {
     });
 
     if (!(await schema.isValid(req.body))) {
-      return res.status(400).json({ error: 'Validation fails' });
+      return res.status(400).json({ error: 'Erro na validação' });
     }
 
     const { id } = req.params;
 
     if (!id || Number.isNaN(Number(id))) {
-      return res.json({ error: 'Validation fails' });
+      return res.json({ error: 'Erro na validação' });
     }
 
     const delivery = await Delivery.findByPk(id);
 
     if (!delivery) {
-      return res.status(400).json({ error: 'Delivery not found' });
+      return res.status(400).json({ error: 'Entrega não encontrada' });
     }
 
-    const { recipient_id, deliveryman_id, signature_id } = req.body;
+    const {
+      recipient_id,
+      deliveryman_id,
+      signature_id,
+      canceled_at,
+    } = req.body;
 
     if (recipient_id) {
       const exists = await Recipient.findByPk(recipient_id);
 
       if (!exists) {
-        return res.status(400).json({ error: 'Recipient not found' });
+        return res.status(400).json({ error: 'Destinatário não encontrado' });
       }
     }
 
@@ -111,7 +171,7 @@ class DeliveryController {
       const exists = await Deliveryman.findByPk(deliveryman_id);
 
       if (!exists) {
-        return res.status(400).json({ error: 'Deliveryman not found' });
+        return res.status(400).json({ error: 'Entregador não encontrado' });
       }
     }
 
@@ -119,14 +179,18 @@ class DeliveryController {
       const exists = await File.findByPk(signature_id);
 
       if (!exists) {
-        return res.status(400).json({ error: 'Signature not found' });
+        return res.status(400).json({ error: 'Assinatura não encontrada' });
+      }
+    }
+
+    if (canceled_at) {
+      if (delivery.canceled_at) {
+        return res.status(400).json({ error: 'Essa entrega já foi cancelada' });
       }
     }
     // #endregion
 
-    const { product, canceled_at, start_at, end_at } = await delivery.update(
-      req.body
-    );
+    const { product, start_at, end_at } = await delivery.update(req.body);
 
     return res.json({
       product,

@@ -1,11 +1,49 @@
 import * as Yup from 'yup';
 
+import { Op } from 'sequelize';
 import Deliverymen from '../models/Deliveryman';
+import Delivery from '../models/Delivery';
 import File from '../models/File';
 
 class DeliverymanController {
   async index(req, res) {
+    const { name, page = 1 } = req.query;
+
+    const filter = {};
+
+    if (name) filter.name = { [Op.iLike]: `%${name}%` };
+
     const deliverymen = await Deliverymen.findAll({
+      where: filter,
+      include: [
+        {
+          model: File,
+          as: 'avatar',
+          attributes: ['id', 'path', 'url'],
+        },
+      ],
+      offset: (page - 1) * 10,
+      limit: 10,
+      subQuery: false,
+    });
+
+    const totalPage = Math.ceil((await Deliverymen.count()) / 10);
+    return res.json({ data: deliverymen, page, totalPage });
+  }
+
+  async show(req, res) {
+    const schema = Yup.object().shape({
+      id: Yup.number().required(),
+    });
+
+    if (!(await schema.isValid(req.params))) {
+      return res.status(400).json({ error: 'Validation fails' });
+    }
+
+    const deliveryman = await Deliverymen.findOne({
+      where: {
+        id: req.params.id,
+      },
       include: [
         {
           model: File,
@@ -14,7 +52,8 @@ class DeliverymanController {
         },
       ],
     });
-    return res.json(deliverymen);
+
+    return res.json(deliveryman);
   }
 
   async store(req, res) {
@@ -98,7 +137,17 @@ class DeliverymanController {
     const deliveryman = await Deliverymen.findByPk(id);
 
     if (!deliveryman) {
-      return res.status(400).json({ error: 'Deliveryman not found' });
+      return res.status(400).json({ error: 'Entregador não encontrado.' });
+    }
+
+    const hasDependencies = await Delivery.findOne({
+      where: { deliveryman_id: id },
+    });
+
+    if (hasDependencies) {
+      return res.status(400).json({
+        error: 'Este entregador possui dependências e não pode ser excluído.',
+      });
     }
 
     await Deliverymen.destroy({ where: { id } });
